@@ -1,0 +1,38 @@
+serviceId = 4308314000000027034;
+staffId = 4308314000000026017;
+response = Map();
+if(context_id.equals("cancel"))
+{
+	name = answers.get("name").get("text");
+	response.put("action","context");
+	response.put("context_id","cancel");
+	if(!answers.containsKey("email"))
+	{
+		valuesMap = Map();
+		valuesMap.put("action","cancel");
+		apponitmentResponse =  zoho.bookings.updateRecord("appointment", name, valuesMap, "zoho_bookings2");
+ 
+		status = apponitmentResponse.get("response").get("returnvalue").get("booking_id");
+		customer_Id=apponitmentResponse.get("response").get("returnvalue").get("customer_email");
+		customer_name= apponitmentResponse.get("response").get("returnvalue").get("customer_name");
+		date_time=apponitmentResponse.get("response").get("returnvalue").get("start_time");
+		info customer_name;
+		if(status.equalsIgnoreCase(name))
+		{
+			response.put("replies",{"Your appointment Details,","Name: "+customer_name,"Mail Id:"+customer_Id,"Date:"+date_time});
+			 response.put("action","end");
+			return response;
+			
+		}
+		else
+		{
+			response.put("action","end");
+			response.put("replies",{"Invalid booking Id","Please Check your Booking Id"});
+			return response;
+		}
+		
+		
+	}
+	
+}
+return response;
