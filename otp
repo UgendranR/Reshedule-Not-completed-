@@ -1,0 +1,425 @@
+response = Map();
+session_map = Map();
+serviceId = 4306863000000027053;
+staffId = 4306863000000027015;
+
+
+
+
+if(context_id.equals("schedule"))
+{
+	response.put("action","context");
+	response.put("context_id","schedule");
+	name = answers.get("name").get("text");
+	if(!answers.containsKey("email"))
+	{
+		question = {"name":"email","replies":{"May I have your email address, please?"},"input":{"type":"email","placeholder":"Your email address?","error":{"Please enter a valid email address"}}};
+	}
+	else
+	{
+		email = answers.get("email").get("text");
+		if(!answers.containsKey("otpverification"))
+		{
+			
+			rand = randomNumber(1000,9999);
+			info rand;
+			session_map.put("size",rand);
+			session = zoho.salesiq.visitorsession.set("entcare", session_map, "salesiqconnection");
+			otp = zoho.salesiq.visitorsession.get("entcare", "size", "salesiqconnection").get("size");
+			sendmail
+			[
+				from :zoho.loginuserid
+				to :email
+				subject :"OTP Verification"
+				message :"One Time Password: " + otp
+			]
+			question = {"name":"otpverification","replies":{"Your OTP has been sent to your Email_Id","Please, Enter the OTP"}};
+		}
+		else
+		{
+			otp1 = answers.get("otpverification").get("text");
+			info otp1;
+			otp = zoho.salesiq.visitorsession.get("entcare", "size", "salesiqconnection").get("size");
+			if(otp == otp1)
+			{
+				if(!answers.containsKey("phone"))
+				{
+					question = {"name":"phone","replies":{"Please, enter your mobile number?"},"input":{"type":"tel","placeholder":"Enter your phone number","error":{"Please enter a valid phone number"},"country_code":"+91"}};
+				}
+				else
+				{
+					phone = answers.get("phone").get("text");
+					if(!answers.containsKey("age"))
+					{
+						question = {"name":"age","replies":{"May I know your age?"}};
+					}
+					else
+					{
+						age = answers.get("age").get("text");
+						if(!answers.containsKey("gender"))
+						{
+							slot = {"type":"select","options":{"Male","Female","Others"}};
+							question = {"name":"gender","replies":{"Please, select your gender"},"input":slot};
+						}
+						else
+						{
+							gender = answers.get("gender").get("text");
+							if(!answers.containsKey("blood"))
+							{
+								slot = {"type":"select","options":{"A+","O+","B+","AB+","A-","O-","B-","AB-"}};
+								question = {"name":"blood","replies":{"Please, select your blood group"},"input":slot};
+							}
+							else
+							{
+								blood = answers.get("blood").get("text");
+								if(!answers.containsKey("location"))
+								{
+									question = {"name":"location","replies":{"May I know your Address?"},"input":{"type":"location","radius":"2 kms","label":"Share Location","select_label":"Send my location"}};
+								}
+								else
+								{
+									location = answers.get("location").get("text");
+									if(!answers.containsKey("concern"))
+									{
+										question = {"name":"concern","replies":{"Your Concern?"},"input":{"type":"multiple-select","options":{"Ear","Nose","Throat"},"max_selection":"3"}};
+									}
+									else
+									{
+										concern = answers.get("concern").get("text");
+										if(!answers.containsKey("covid"))
+										{
+											slot = {"type":"select","options":{"Yes","No"}};
+											question = {"name":"covid","replies":{"Are you Vaccinated?"},"input":slot};
+										}
+										else
+										{
+											covid = answers.get("covid").get("text");
+											if(!answers.containsKey("visit"))
+											{
+												slt1 = {"type":"select","options":{"First Visit","Follow-Up Visit"}};
+												question = {"name":"visit","replies":{"Are you visiting for the first time, or is it a follow-up visit?"},"input":slt1};
+											}
+											else
+											{
+												visit = answers.get("visit").get("text");
+												if(!answers.containsKey("date"))
+												{
+													slots = {"type":"calendar","time":false,"tz":false,"from":"+0","label":"Schedule a meeting","to":"+5","select_label":"Choose a slot"};
+													question = {"name":"date","replies":{"When would you like to schedule the appointment?","Choose a suitable date and time"},"skippable":"true","input":slots};
+												}
+												else
+												{
+													date = answers.get("date");
+													if(!date.get("text").equalsIgnoreCase("-"))
+													{
+														appointmentDate = date.get("text");
+														if(!answers.containKey("slots"))
+														{
+															availableSlots = zoho.bookings.getAvailableSlots(serviceId,staffId,appointmentDate,"zoho_bookings2");
+															slots = availableSlots.get("response").get("returnvalue").get("data");
+															if(slots.isEmpty())
+															{
+																response.put("action","end");
+																response.put("replies",{"Sorry, we don't have a slots for that day"});
+																return response;
+															}
+															else
+															{
+																question = {"name":"slots","replies":{"Please choose the following slots as for your convenience"},"suggestions":slots};
+																response.put("questions",{question});
+																return response;
+															}
+														}
+														else
+														{
+															slots = answers.get("slots").get("text");
+															appointmentDate = appointmentDate + " " + slots + ":00";
+															if(!answers.containsKey("thanks"))
+															{
+																timeZone = "Asia/Calcutta";
+																customerDetails = Map();
+																customerDetails.put("name",name);
+																customerDetails.put("email",email);
+																customerDetails.put("phone_number",phone);
+																customerDetails.put("age",age);
+																customerDetails.put("blood_group",blood);
+																apponitmentResponse = zoho.bookings.createAppointment(serviceId,appointmentDate,customerDetails,staffId,timeZone,true,"zoho_bookings2");
+																status = apponitmentResponse.get("response").get("status");
+																if(status.equalsIgnoreCase("success"))
+																{
+																	if(!answers.containsKey("success"))
+																	{
+																		slt5 = {"type":"select","options":{"Yes, verified."}};
+																		question = {"name":"success","replies":{"Making an appointment on " + appointmentDate + ".","Appointment Details:","Name: " + name,"Gender: " + gender,"Age: " + age,"Blood Group: " + blood,"Specialist: " + concern + " Specialist"," Date & Time: " + appointmentDate,"Please verify the details before confirming your appointment"},"input":slt5};
+																	}
+																	else
+																	{
+																		company = answers.get("success").get("text");
+																		if(!answers.containsKey("doctor"))
+																		{
+																			slot = {"type":"select","options":{"Ok,Thanks!"}};
+																			question = {"name":"doctor","replies":{"Great! You have successfully made an appointment","Sending confirmation mail to your email id...","Confirmation mail sent!"},"input":slot};
+																		}
+																		else
+																		{
+																			doctor = answers.get("doctor").get("text");
+																			if(!answers.containsKey("rating"))
+																			{
+																				slt6 = {"type":"star-rating","level":"5"};
+																				question = {"name":"rating","replies":{"Please, share your experience"},"input":slt6};
+																			}
+																			else
+																			{
+																				rating = answers.get("rating").get("text");
+																				sendmail
+																				[
+																					from :zoho.loginuserid
+																					to :email
+																					subject :"Appointment Detail"
+																					message :"Your appointment has been confirmed.The following are the appointment details.<br><br>Appointment Details: <br> Name: " + name + "<br> Gender: " + gender + "<br>Age: " + age + "<br> Blood Group: " + blood + "<br>Specialist: " + concern + " Specialist <br> Date & Time: " + appointmentDate + "."
+																				]
+																				if(!answers.containsKey("end"))
+																				{
+																					question = {"name":"end","replies":{"Thanks for contacting us","Have a nice day ;)"}};
+																					response.put("action","end");
+																					response.put("replies",{"Thanks for contacting us","Have a nice day ;)"});
+																					return response;
+																				}
+																				else
+																				{
+																					response.put("action","end");
+																					response.put("replies",{"Thanks for contacting us","Have a nice day ;)"});
+																					return response;
+																				}
+																			}
+																		}
+																	}
+																}
+																else
+																{
+																	response.put("action","end");
+																	response.put("replies",{"Sorry, error occured!"});
+																	return response;
+																}
+															}
+															else
+															{
+																response.put("action","end");
+																response.put("replies",{"Have a nice day"});
+																return response;
+															}
+														}
+													}
+													else
+													{
+														response.put("action","end");
+														response.put("replies",{"Have a nice day"});
+														return response;
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				response.put("action","end");
+				response.put("replies",{"The OTP you have entered is wrong!!","Kindly restart the bot"});
+				return response;
+			}
+		}
+	}
+	response.put("questions",{question});
+}
+else if(context_id.equals("nothing"))
+{
+	response.put("action","end");
+	response.put("replies",{"Thanks for contacting us","Have a nice day ;)"});
+}
+// Cancel an appointment
+if(context_id.equals("cancel"))
+{
+	name = answers.get("name").get("text");
+	response.put("action","context");
+	response.put("context_id","cancel");
+	if(!answers.containsKey("email"))
+	{
+		valuesMap = Map();
+		valuesMap.put("action","cancel");
+		apponitmentResponse = zoho.bookings.updateRecord("appointment",name,valuesMap,"zoho_bookings2");
+		status = apponitmentResponse.get("response").get("returnvalue").get("status");
+		info status;
+		if(status.equalsIgnoreCase("cancel"))
+		{
+			response.put("replies",{"Your appointment has been cancelled successfully","Thanks for contacting us","Have a nice day ;)"});
+			response.put("action","end");
+			return response;
+		}
+		else
+		{
+			response.put("action","end");
+			response.put("replies",{"Invalid booking Id","Please Check your Booking Id"});
+			return response;
+		}
+	}
+}
+// Reschedule an appointment
+if(context_id.equals("reschedule"))
+{
+	name = answers.get("name").get("text");
+	response.put("action","context");
+	response.put("context_id","reschedule");
+	if(!answers.containsKey("email"))
+	{
+		valuesMap = Map();
+		valuesMap.put("action","cancel");
+		appointmentResponse = zoho.bookings.updateRecord("appointment",name,valuesMap,"zoho_bookings2");
+		status = appointmentResponse.get("response").get("returnvalue").get("booking_id");
+		customer_Id = appointmentResponse.get("response").get("returnvalue").get("customer_email");
+		customer_name = appointmentResponse.get("response").get("returnvalue").get("customer_name");
+		date_time = appointmentResponse.get("response").get("returnvalue").get("start_time");
+		info customer_name;
+		if(status.equalsIgnoreCase(name))
+		{
+			info status;
+			if(!answers.containsKey("visit"))
+			{
+				slt1 = {"type":"select","options":{"Yes"}};
+				question = {"name":"visit","replies":{"Your appointment Details","Name: " + customer_name,"Mail Id: " + customer_Id,"Date: " + date_time,"You want to reschedule an appointment?"},"input":slt1};
+			}
+			else
+			{
+				visit = answers.get("visit").get("text");
+				if(!answers.containsKey("date"))
+				{
+					slots = {"type":"calendar","time":false,"tz":false,"from":"+0","label":"Schedule a meeting","to":"+5","select_label":"Choose a slot"};
+					question = {"name":"date","replies":{"When would you like to schedule the appointment?","Choose a suitable date and time"},"skippable":"true","input":slots};
+				}
+				else
+				{
+					date = answers.get("date");
+					if(!date.get("text").equalsIgnoreCase("-"))
+					{
+						appointmentDate = date.get("text");
+						if(!answers.containKey("slots"))
+						{
+							availableSlots = zoho.bookings.getAvailableSlots(serviceId,staffId,appointmentDate,"zoho_bookings2");
+							slots = availableSlots.get("response").get("returnvalue").get("data");
+							if(slots.isEmpty())
+							{
+								response.put("action","end");
+								response.put("replies",{"Sorry, we don't have a slots for that day"});
+								return response;
+							}
+							else
+							{
+								question = {"name":"slots","replies":{"Please choose the following slots as for your convenience"},"suggestions":slots};
+								response.put("questions",{question});
+								return response;
+							}
+						}
+						else
+						{
+							slots = answers.get("slots").get("text");
+							appointmentDate = appointmentDate + " " + slots + ":00";
+							if(!answers.containsKey("thanks"))
+							{
+								timeZone = "Asia/Calcutta";
+								customerDetails = Map();
+								customerDetails.put("name",name);
+								customerDetails.put("email",email);
+								customerDetails.put("phone_number",phone);
+								customerDetails.put("age",age);
+								customerDetails.put("blood_group",blood);
+								apponitmentResponse = zoho.bookings.createAppointment(serviceId,appointmentDate,customerDetails,staffId,timeZone,true,"zoho_bookings2");
+								status = apponitmentResponse.get("response").get("status");
+								if(status.equalsIgnoreCase("success"))
+								{
+									if(!answers.containsKey("success"))
+									{
+										slt5 = {"type":"select","options":{"Yes, verified."}};
+										question = {"name":"success","replies":{"Making an appointment on " + appointmentDate + ".","Appointment Details:","Name: " + name,"Gender: " + gender,"Age: " + age,"Blood Group: " + blood,"Specialist: " + concern + " Specialist"," Date & Time: " + appointmentDate,"Please verify the details before confirming your appointment"},"input":slt5};
+									}
+									else
+									{
+										company = answers.get("success").get("text");
+										if(!answers.containsKey("doctor"))
+										{
+											slot = {"type":"select","options":{"Ok,Thanks!"}};
+											question = {"name":"doctor","replies":{"Great! You have successfully made an appointment","Sending confirmation mail to your email id...","Confirmation mail sent!"},"input":slot};
+										}
+										else
+										{
+											doctor = answers.get("doctor").get("text");
+											if(!answers.containsKey("rating"))
+											{
+												slt6 = {"type":"star-rating","level":"5"};
+												question = {"name":"rating","replies":{"Please, share your experience"},"input":slt6};
+											}
+											else
+											{
+												rating = answers.get("rating").get("text");
+												sendmail
+												[
+													from :zoho.loginuserid
+													to :email
+													subject :"Appointment Detail"
+													message :"Your appointment has been confirmed.The following are the appointment details.<br><br>Appointment Details: <br> Name: " + name + "<br> Gender: " + gender + "<br>Age: " + age + "<br> Blood Group: " + blood + "<br>Specialist: " + concern + " Specialist <br> Date & Time: " + appointmentDate + "."
+												]
+												if(!answers.containsKey("end"))
+												{
+													question = {"name":"end","replies":{"Thanks for contacting us","Have a nice day ;)"}};
+													response.put("action","end");
+													response.put("replies",{"Thanks for contacting us","Have a nice day ;)"});
+													return response;
+												}
+												else
+												{
+													response.put("action","end");
+													response.put("replies",{"Thanks for contacting us","Have a nice day ;)"});
+													return response;
+												}
+											}
+										}
+									}
+								}
+								else
+								{
+									response.put("action","end");
+									response.put("replies",{"Sorry, error occured!"});
+									return response;
+								}
+							}
+							else
+							{
+								response.put("action","end");
+								response.put("replies",{"Have a nice day"});
+								return response;
+							}
+						}
+					}
+					else
+					{
+						response.put("action","end");
+						response.put("replies",{"Have a nice day"});
+						return response;
+					}
+				}
+			}
+		}
+		response.put("questions",{question});
+	}
+	else
+	{
+		
+		response.put("action","end");
+		response.put("replies",{"Invalid booking Id","Please Check your Booking Id"});
+		return response;
+	}
+}
+return response;
